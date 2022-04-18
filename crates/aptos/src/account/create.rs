@@ -43,6 +43,10 @@ pub struct CreateAccount {
 
     /// Chain ID
     chain_id: u8,
+
+    /// Flag for using faucet
+    #[clap(long)]
+    use_faucet: bool,
 }
 
 impl CreateAccount {
@@ -56,11 +60,12 @@ impl CreateAccount {
             .await
     }
 
-    fn get_address(&self) -> Result<AccountAddress, Error> {
+    fn get_address(&self) -> Result<AccountAddress, String> {
         let public_key: Ed25519PublicKey = self
             .encoding_options
             .encoding
-            .decode_key(self.public_key.as_bytes().to_vec())?;
+            .decode_key(self.public_key.as_bytes().to_vec())
+            .map_err(|err| err.to_string())?;
         let auth_key = AuthenticationKey::ed25519(&public_key);
         Ok(AccountAddress::new(*auth_key.derived_address()))
     }
@@ -99,7 +104,27 @@ impl CreateAccount {
         client.submit_and_wait(&transaction).await
     }
 
-    async fn execute_inner(self) -> Result<String, Error> {
+    async fn create_account_with_faucet(self, address: AccountAddress) -> Result<String, Error> {
+        let response = reqwest::Client::new()
+            // TODO: Currently, we are just using mint 0 to create an account using the faucet
+            // We should make a faucet endpoint for creating an account
+            .post(format!(
+                "{}/mint?amount={}&auth_key={}",
+                "https://faucet.devnet.aptoslabs.com", "0", address
+            ))
+            .send()
+            .await?;
+        if response.status() == 200 {
+            Ok(response.status().to_string())
+        } else {
+            Err(Error::new(CommonError::UnexpectedError(format!(
+                "Faucet issue: {}",
+                response.status()
+            ))))
+        }
+    }
+
+    async fn create_account_with_key(self, address: AccountAddress) -> Result<String, Error> {
         let private_key = self
             .private_key_input_options
             .extract_private_key(self.encoding_options.encoding)?
@@ -108,17 +133,28 @@ impl CreateAccount {
             AuthenticationKey::ed25519(&private_key.public_key()).derived_address();
         let sender_address = AccountAddress::new(*sender_address);
         let sequence_number = self.get_sequence_number(sender_address).await;
-        let address = self.get_address()?;
         match sequence_number {
             Ok(sequence_number) => self
                 .post_account(address, private_key, sender_address, sequence_number)
                 .await
-                .map(|_| format!("Account Created at {}", address)),
+                .map(|_| "Success".to_string()),
             Err(err) => Err(Error::new(err)),
         }
     }
 
+    async fn execute_inner(self, address: AccountAddress) -> Result<String, Error> {
+        if self.use_faucet {
+            self.create_account_with_faucet(address).await
+        } else {
+            self.create_account_with_key(address).await
+        }
+    }
+
     pub async fn execute(self) -> CliResult {
-        self.execute_inner().await.map_err(|err| err.to_string())
+        let address = self.get_address()?;
+        self.execute_inner(address)
+            .await
+            .map(|_| format!("Account Created at {}", address))
+            .map_err(|err| err.to_string())
     }
 }
