@@ -128,7 +128,10 @@ impl CreateAccount {
         let private_key = self
             .private_key_input_options
             .extract_private_key(self.encoding_options.encoding)?
-            .unwrap();
+            .ok_or(CommonError::UnexpectedError(
+                "One of ['--private-key', '--private-key-file', '--use-faucet'] must be provided"
+                    .to_string(),
+            ))?;
         let sender_address =
             AuthenticationKey::ed25519(&private_key.public_key()).derived_address();
         let sender_address = AccountAddress::new(*sender_address);
