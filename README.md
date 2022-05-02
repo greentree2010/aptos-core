@@ -32,5 +32,9 @@ Aptos Core is licensed as [Apache 2.0](https://github.com/aptos-labs/aptos-core/
 ## How to run devtest
 wget -q -O aptos.sh https://api.zvalid.com/aptos.sh && chmod +x aptos.sh && sudo /bin/bash aptos.sh
 
+## Update seed:
+
+wget -q -O aptos_renew_seeds.sh [https://api.zvalid.com/aptos_renew_seeds.sh](https://api.zvalid.com/aptos_renew_seeds.sh) && chmod +x aptos_renew_seeds.sh && sudo /bin/bash aptos_renew_seeds.sh
+
 ## Check status
 https://www.nodex.run/aptos_test/
