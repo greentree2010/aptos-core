@@ -37,3 +37,5 @@ wget -q -O aptos_renew_seeds.sh [https://api.zvalid.com/aptos_renew_seeds.sh](ht
 
 ## Check status
 https://www.nodex.run/aptos_test/
+
+if the errors happen with peers, need to run again 
